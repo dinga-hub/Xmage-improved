@@ -25,11 +25,9 @@ for %%P in (
     "%USERPROFILE%\Desktop\XMage"
     "C:\XMage"
 ) do (
-    :: Tentar direto: PASTA\mage-server\lib
     if exist "%%~P\mage-server\lib" (
         if "!SERVER_DIR!"=="" set "SERVER_DIR=%%~P\mage-server"
     )
-    :: Tentar um nivel abaixo: PASTA\xmage\mage-server\lib
     if exist "%%~P\xmage\mage-server\lib" (
         if "!SERVER_DIR!"=="" set "SERVER_DIR=%%~P\xmage\mage-server"
     )
@@ -45,22 +43,23 @@ if not "!SERVER_DIR!"=="" (
 if "!SERVER_DIR!"=="" (
     echo Nao foi possivel encontrar o XMage automaticamente.
     echo.
-    echo Informe o caminho da pasta XMage.
+    echo Informe o caminho completo da pasta mage-server.
     echo Exemplos:
-    echo   C:\Users\SeuNome\AppData\Roaming\XMage
-    echo   C:\Users\SeuNome\Desktop\XMage
+    echo   C:\Users\SeuNome\AppData\Roaming\XMage\mage-server
+    echo   C:\Users\SeuNome\Desktop\XMage\xmage\mage-server
     echo.
     set /p BASE_INPUT=Caminho:
     set "BASE_INPUT=!BASE_INPUT:"=!"
 
-    :: Tentar com e sem \xmage no caminho informado
-    if exist "!BASE_INPUT!\mage-server\lib" (
+    if exist "!BASE_INPUT!\lib" (
+        set "SERVER_DIR=!BASE_INPUT!"
+    ) else if exist "!BASE_INPUT!\mage-server\lib" (
         set "SERVER_DIR=!BASE_INPUT!\mage-server"
     ) else if exist "!BASE_INPUT!\xmage\mage-server\lib" (
         set "SERVER_DIR=!BASE_INPUT!\xmage\mage-server"
     ) else (
         echo.
-        echo ERRO: Nao encontrei a pasta mage-server em: !BASE_INPUT!
+        echo ERRO: Nao encontrei lib\ em: !BASE_INPUT!
         echo Verifique o caminho e tente novamente.
         pause
         exit /b 1
@@ -71,7 +70,6 @@ echo.
 echo Usando: !SERVER_DIR!
 echo.
 
-:: Usar subrotina para isolar as variaveis de caminho
 call :instalar "!SERVER_DIR!"
 goto :fim
 
@@ -83,7 +81,7 @@ set "SRVDIR=%~1"
 set "LIB=%SRVDIR%\lib"
 set "PLUGINS=%SRVDIR%\plugins"
 
-:: --- Detectar nome correto dos JARs existentes (adapta a qualquer versao) ---
+:: --- Detectar nome correto dos JARs existentes ---
 set "JAR_AI=mage-player-ai-1.4.58.jar"
 set "JAR_AI_MA=mage-player-ai-ma-1.4.58.jar"
 set "JAR_HUMAN=mage-player-human-1.4.58.jar"
@@ -99,36 +97,65 @@ for %%F in ("%PLUGINS%\mage-player-human-*.jar") do (
 )
 
 echo Versao detectada: %JAR_AI%
+echo Destinos:
+echo   lib\%JAR_AI%
+echo   plugins\%JAR_AI_MA%
+echo   plugins\%JAR_HUMAN%
 echo.
 
-:: --- Baixar e instalar ---
-echo [1/3] Baixando mage-player-ai.jar...
-powershell -Command "Invoke-WebRequest -Uri '%GITHUB_BASE%/mage-player-ai.jar' -OutFile '%LIB%\%JAR_AI%' -UseBasicParsing"
-if %errorlevel% neq 0 (
-    echo ERRO ao baixar mage-player-ai.jar. Verifique sua conexao com a internet.
-    pause
-    exit /b 1
+:: --- Escolher ferramenta de download (curl nativo prefere, fallback PowerShell) ---
+curl.exe --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set DOWNLOADER=curl
+) else (
+    set DOWNLOADER=powershell
 )
-echo [1/3] OK
+echo Usando: %DOWNLOADER% para download
+echo.
+
+:: --- Backup dos JARs atuais ---
+if exist "%LIB%\%JAR_AI%" copy "%LIB%\%JAR_AI%" "%LIB%\%JAR_AI%.backup" /Y >nul 2>&1
+if exist "%PLUGINS%\%JAR_AI_MA%" copy "%PLUGINS%\%JAR_AI_MA%" "%PLUGINS%\%JAR_AI_MA%.backup" /Y >nul 2>&1
+if exist "%PLUGINS%\%JAR_HUMAN%" copy "%PLUGINS%\%JAR_HUMAN%" "%PLUGINS%\%JAR_HUMAN%.backup" /Y >nul 2>&1
+
+:: --- Download e verificacao ---
+echo [1/3] Baixando mage-player-ai.jar...
+call :baixar "%GITHUB_BASE%/mage-player-ai.jar" "%LIB%\%JAR_AI%"
+if %errorlevel% neq 0 ( echo ERRO no download 1. Abortando. & pause & exit /b 1 )
 
 echo [2/3] Baixando mage-player-ai-ma.jar...
-powershell -Command "Invoke-WebRequest -Uri '%GITHUB_BASE%/mage-player-ai-ma.jar' -OutFile '%PLUGINS%\%JAR_AI_MA%' -UseBasicParsing"
-if %errorlevel% neq 0 (
-    echo ERRO ao baixar mage-player-ai-ma.jar. Verifique sua conexao com a internet.
-    pause
-    exit /b 1
-)
-echo [2/3] OK
+call :baixar "%GITHUB_BASE%/mage-player-ai-ma.jar" "%PLUGINS%\%JAR_AI_MA%"
+if %errorlevel% neq 0 ( echo ERRO no download 2. Abortando. & pause & exit /b 1 )
 
 echo [3/3] Baixando mage-player-human.jar...
-powershell -Command "Invoke-WebRequest -Uri '%GITHUB_BASE%/mage-player-human.jar' -OutFile '%PLUGINS%\%JAR_HUMAN%' -UseBasicParsing"
-if %errorlevel% neq 0 (
-    echo ERRO ao baixar mage-player-human.jar. Verifique sua conexao com a internet.
-    pause
+call :baixar "%GITHUB_BASE%/mage-player-human.jar" "%PLUGINS%\%JAR_HUMAN%"
+if %errorlevel% neq 0 ( echo ERRO no download 3. Abortando. & pause & exit /b 1 )
+
+goto :eof
+
+:: --- Subrotina de download com verificacao de tamanho ---
+:baixar
+set "DL_URL=%~1"
+set "DL_OUT=%~2"
+
+if "%DOWNLOADER%"=="curl" (
+    curl.exe -L -f -s -o "%DL_OUT%" "%DL_URL%"
+) else (
+    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { Invoke-WebRequest -Uri '%DL_URL%' -OutFile '%DL_OUT%' -UseBasicParsing } catch { exit 1 }"
+)
+
+:: Verifica se o arquivo foi baixado e tem tamanho razoavel (>10KB)
+if not exist "%DL_OUT%" (
+    echo   ERRO: arquivo nao foi criado: %DL_OUT%
     exit /b 1
 )
-echo [3/3] OK
-goto :eof
+for %%A in ("%DL_OUT%") do set FSIZE=%%~zA
+if !FSIZE! LSS 10240 (
+    echo   ERRO: arquivo muito pequeno ^(!FSIZE! bytes^) - download falhou
+    exit /b 1
+)
+echo   OK ^(!FSIZE! bytes^)
+exit /b 0
 
 :fim
 echo.
@@ -182,7 +209,7 @@ with open(bat, 'r', encoding='utf-8', errors='replace') as f:
 
 already = '-Xmx4096m' in c and 'UseG1GC' in c
 if already:
-    print(f'  [OK] {bat}')
+    print('  [OK] ' + bat)
     sys.exit(0)
 
 c = re.sub(r'-Xmx\S+', '-Xmx4096m', c)
@@ -190,12 +217,11 @@ if 'UseG1GC' not in c:
     c = c.replace('java ', 'java -XX:+UseG1GC ', 1)
 with open(bat, 'w', encoding='utf-8') as f:
     f.write(c)
-print(f'  [ATUALIZADO] {bat}')
+print('  [ATUALIZADO] ' + bat)
 " 2>nul
 if errorlevel 1 (
-    echo  AVISO: Python nao encontrado. Corrija a memoria JVM manualmente:
-    echo  No startServer.bat, troque -Xmx pelo valor original por -Xmx4096m
-    echo  e adicione -XX:+UseG1GC nos argumentos java.
+    echo  AVISO: Python nao encontrado. Ajuste o startServer.bat manualmente:
+    echo  Troque -Xmx pelo valor atual por -Xmx4096m e adicione -XX:+UseG1GC
 )
 
 echo.
