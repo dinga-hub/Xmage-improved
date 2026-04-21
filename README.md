@@ -4,11 +4,22 @@ XMage Commander AI melhorado para partidas multiplayer locais.
 
 ## Instalação
 
-1. Baixe o [`install-ai-patch.bat`](../../raw/main/install-ai-patch.bat)
-2. Dê duplo clique e siga as instruções
-3. Reinicie o servidor XMage
+### Opção 1 — Instalador automático (recomendado)
 
-> Requer Python (para o patch de memória JVM). Se não tiver, instale em python.org — ou ajuste o `-Xmx` no `startServer.bat` manualmente para `4096m`.
+1. Baixe o [`XMageAIPatch.exe`](../../releases/latest/download/XMageAIPatch.exe)
+2. Feche o servidor XMage
+3. Dê duplo clique e siga as instruções
+4. Reinicie o servidor XMage
+
+> Detecta automaticamente a pasta do XMage, o nome correto dos JARs e aplica o patch de memória JVM.
+
+### Opção 2 — Manual
+
+1. Baixe os 3 JARs da aba [Releases](../../releases/latest)
+2. Substitua na pasta do XMage:
+   - `mage-player-ai.jar` → `mage-server\lib\mage-player-ai-*.jar`
+   - `mage-player-ai-ma.jar` → `mage-server\plugins\mage-player-ai-ma-*.jar`
+   - `mage-player-human.jar` → `mage-server\plugins\mage-player-human-*.jar`
 
 ## O que muda
 
@@ -29,4 +40,4 @@ XMage Commander AI melhorado para partidas multiplayer locais.
 | 13a | Deathtouch blocker priority |
 | 13b | Gang-block com criaturas expendáveis |
 | 15 | Proteção de peças de alto valor |
-| Smart Skip F9 | Para auto-skip em remoção/boardwipe no stack |
+| Smart Skip F9 | Para auto-skip em remoção/boardwipe no stack (inclui cartas customizadas como Blood Money) |
