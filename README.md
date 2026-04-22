@@ -2,7 +2,7 @@
 
 XMage Commander AI melhorado para partidas multiplayer locais.
 
-## Instalação
+## Como instalar (amigos)
 
 ### Opção 1 — Instalador automático (recomendado)
 
@@ -13,15 +13,33 @@ XMage Commander AI melhorado para partidas multiplayer locais.
 
 > Detecta automaticamente a pasta do XMage, o nome correto dos JARs e aplica o patch de memória JVM.
 
-### Opção 2 — Manual
+### Opção 2 — Manual (3 arquivos)
 
-1. Baixe os 3 JARs da aba [Releases](../../releases/latest)
-2. Substitua na pasta do XMage:
-   - `mage-player-ai.jar` → `mage-server\lib\mage-player-ai-*.jar`
-   - `mage-player-ai-ma.jar` → `mage-server\plugins\mage-player-ai-ma-*.jar`
-   - `mage-player-human.jar` → `mage-server\plugins\mage-player-human-*.jar`
+1. Baixe os 3 JARs da pasta [`jars/`](jars/):
+   - [`mage-player-ai.jar`](jars/mage-player-ai.jar)
+   - [`mage-player-ai-ma.jar`](jars/mage-player-ai-ma.jar)
+   - [`mage-player-human.jar`](jars/mage-player-human.jar)
 
-## O que muda
+2. Substitua na pasta do XMage (feche o servidor antes):
+   - `mage-player-ai.jar` → `mage-server\lib\mage-player-ai-1.4.58.jar`
+   - `mage-player-ai-ma.jar` → `mage-server\plugins\mage-player-ai-ma-1.4.58.jar`
+   - `mage-player-human.jar` → `mage-server\plugins\mage-player-human-1.4.58.jar`
+
+3. Reinicie o servidor XMage
+
+## O que muda nos bots
+
+Os bots mostram as decisões em **laranja** no chat do jogo:
+
+| Tag | Significado |
+|-----|-------------|
+| `[ATTACK]` | Ordem de prioridade de ataque por threat score |
+| `[HOLD]` | Por que segurou uma criatura em vez de atacar |
+| `[BLOCK]` | Por que e como decidiu bloquear |
+| `[BOARDWIPE]` | Por que segurou um boardwipe |
+| `[REMOVAL]` | Por que pulou um alvo fraco de remoção |
+
+## Sprints implementadas
 
 | Sprint | Descrição |
 |--------|-----------|
@@ -40,4 +58,4 @@ XMage Commander AI melhorado para partidas multiplayer locais.
 | 13a | Deathtouch blocker priority |
 | 13b | Gang-block com criaturas expendáveis |
 | 15 | Proteção de peças de alto valor |
-| Smart Skip F9 | Para auto-skip em remoção/boardwipe no stack (inclui cartas customizadas como Blood Money) |
+| Smart Skip F9 | Para auto-skip em remoção/boardwipe no stack |
