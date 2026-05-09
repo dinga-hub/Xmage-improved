@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
@@ -7,10 +8,9 @@ using Microsoft.Win32;
 /// <summary>
 /// XMage AI Patch Installer
 /// - Auto-detects XMage installation via registry + common paths
-/// - Detects exact versioned JAR filenames (e.g. mage-player-ai-1.4.58.jar)
-/// - Downloads 3 JARs from GitHub Releases using WebClient (follows redirects)
-/// - Validates file size after download
-/// - Patches startServer.bat with -Xmx4096m and G1GC
+/// - Detects versioned JAR filenames already on disk (any XMage server version)
+/// - Downloads 3 unversioned JARs from GitHub Releases, writes using those exact names
+/// - Patches startServer.bat + installed.properties (if found) for JVM heap / G1GC
 /// </summary>
 class XMageInstaller
 {
@@ -21,14 +21,12 @@ class XMageInstaller
     {
         Console.Title = "XMage AI Patch - Instalador";
 
-        // .NET 4.0 default is TLS 1.0 — GitHub requires TLS 1.2+
         System.Net.ServicePointManager.SecurityProtocol =
             System.Net.SecurityProtocolType.Tls12 |
             System.Net.SecurityProtocolType.Tls11;
 
         Header();
 
-        // ── 1. Locate mage-server ────────────────────────────────────────────
         string serverDir = FindXMageServer();
 
         if (serverDir != null)
@@ -49,20 +47,37 @@ class XMageInstaller
         string libDir     = Path.Combine(serverDir, "lib");
         string pluginsDir = Path.Combine(serverDir, "plugins");
 
-        // ── 2. Detect versioned JAR names ────────────────────────────────────
-        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar",    "mage-player-ai-1.4.58.jar");
-        string jarAiMa  = DetectJar(pluginsDir, "mage-player-ai-ma-*.jar", "mage-player-ai-ma-1.4.58.jar");
-        string jarHuman = DetectJar(pluginsDir, "mage-player-human-*.jar", "mage-player-human-1.4.58.jar");
+        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar");
+        string jarAiMa  = DetectJar(pluginsDir, "mage-player-ai-ma-*.jar");
+        string jarHuman = DetectJar(pluginsDir, "mage-player-human-*.jar");
+
+        if (jarAi == null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("ERRO: nao encontrei mage-player-ai-*.jar em lib\\.");
+            Console.WriteLine("       Instale/atualize o XMage (servidor) pelo launcher oficial pelo menos uma vez.");
+            Pause(); return 1;
+        }
+        if (jarAiMa == null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("ERRO: nao encontrei mage-player-ai-ma-*.jar em plugins\\.");
+            Pause(); return 1;
+        }
+        if (jarHuman == null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("ERRO: nao encontrei mage-player-human-*.jar em plugins\\.");
+            Pause(); return 1;
+        }
 
         Console.WriteLine();
-        Console.WriteLine("Versao detectada : " + jarAi);
-        Console.WriteLine("Destinos:");
+        Console.WriteLine("JARs detectados (independentes da versao do servidor):");
         Console.WriteLine("  lib\\"     + jarAi);
         Console.WriteLine("  plugins\\" + jarAiMa);
         Console.WriteLine("  plugins\\" + jarHuman);
         Console.WriteLine();
 
-        // ── 3. Download JARs ─────────────────────────────────────────────────
         bool ok = true;
         ok = ok && DownloadJar("mage-player-ai.jar",    Path.Combine(libDir,     jarAi),    1, 3);
         ok = ok && DownloadJar("mage-player-ai-ma.jar", Path.Combine(pluginsDir, jarAiMa),  2, 3);
@@ -75,8 +90,7 @@ class XMageInstaller
             Pause(); return 1;
         }
 
-        // ── 4. JVM memory patch ──────────────────────────────────────────────
-        PatchJvm(serverDir);
+        PatchJvmAndMemoryFiles(serverDir);
 
         Console.WriteLine();
         Console.WriteLine("============================================");
@@ -87,11 +101,8 @@ class XMageInstaller
         return 0;
     }
 
-    // ── Detection ─────────────────────────────────────────────────────────────
-
     static string FindXMageServer()
     {
-        // Registry: HKCU\Software\XMage\InstallDir
         try
         {
             using (var key = Registry.CurrentUser.OpenSubKey(@"Software\XMage"))
@@ -105,7 +116,6 @@ class XMageInstaller
         }
         catch { /* ignore */ }
 
-        // Common base folders
         string[] basePaths =
         {
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -127,19 +137,15 @@ class XMageInstaller
         return null;
     }
 
-    /// Returns the mage-server path if found under basePath, else null.
     static string TryServerDir(string basePath)
     {
         if (string.IsNullOrEmpty(basePath)) return null;
 
-        // basePath IS mage-server
         if (Directory.Exists(Path.Combine(basePath, "lib"))) return basePath;
 
-        // basePath\mage-server
         string s1 = Path.Combine(basePath, "mage-server");
         if (Directory.Exists(Path.Combine(s1, "lib"))) return s1;
 
-        // basePath\xmage\mage-server
         string s2 = Path.Combine(basePath, "xmage", "mage-server");
         if (Directory.Exists(Path.Combine(s2, "lib"))) return s2;
 
@@ -166,24 +172,27 @@ class XMageInstaller
         return null;
     }
 
-    /// Detects the exact versioned JAR filename already present in dir.
-    static string DetectJar(string dir, string pattern, string fallback)
+    /// <summary>
+    /// Picks the versioned JAR name already present. If several match (rare), uses newest LastWriteTime.
+    /// Excludes *.backup. Returns null if none — caller must abort (do not guess a version string).
+    /// </summary>
+    static string DetectJar(string dir, string pattern)
     {
-        if (!Directory.Exists(dir)) return fallback;
+        if (!Directory.Exists(dir)) return null;
 
-        string[] matches = Directory.GetFiles(dir, pattern);
-        foreach (string path in matches)
-        {
-            string name = Path.GetFileName(path);
-            // Exclude backups
-            if (!name.EndsWith(".backup", StringComparison.OrdinalIgnoreCase))
-                return name;
-        }
+        string[] paths = Directory.GetFiles(dir, pattern);
+        var candidates = paths
+            .Where(p =>
+            {
+                string n = Path.GetFileName(p);
+                return !n.EndsWith(".backup", StringComparison.OrdinalIgnoreCase);
+            })
+            .OrderByDescending(p => new FileInfo(p).LastWriteTimeUtc)
+            .ToArray();
 
-        return fallback;
+        if (candidates.Length == 0) return null;
+        return Path.GetFileName(candidates[0]);
     }
-
-    // ── Download ──────────────────────────────────────────────────────────────
 
     static bool DownloadJar(string jarName, string destPath, int step, int total)
     {
@@ -192,18 +201,15 @@ class XMageInstaller
         string backupPath = destPath + ".backup";
         try
         {
-            // Backup existing file
             if (File.Exists(destPath))
                 File.Copy(destPath, backupPath, overwrite: true);
 
-            // WebClient follows HTTP redirects automatically (unlike Invoke-WebRequest issues)
             using (WebClient wc = new WebClient())
             {
                 wc.Headers["User-Agent"] = "XMageAIPatch/1.0";
                 wc.DownloadFile(BASE_URL + "/" + jarName, destPath);
             }
 
-            // Validate
             long size = new FileInfo(destPath).Length;
             if (size < MIN_JAR_BYTES)
             {
@@ -229,26 +235,58 @@ class XMageInstaller
         catch { /* best-effort */ }
     }
 
-    // ── JVM patch ─────────────────────────────────────────────────────────────
-
-    static void PatchJvm(string serverDir)
+    static void PatchJvmAndMemoryFiles(string serverDir)
     {
-        Console.Write("[4/4] Aplicando patch de memoria JVM (-Xmx4096m + G1GC)... ");
+        Console.WriteLine("[4/4] Memoria JVM (-Xmx4096m + G1GC)");
 
         string batPath = FindStartServerBat(serverDir);
-        if (batPath == null) { Console.WriteLine("startServer.bat nao encontrado — ajuste manualmente."); return; }
+        if (batPath != null)
+            PatchOneJvmFile(batPath);
+        else
+            Console.WriteLine("  AVISO: startServer.bat nao encontrado.");
 
-        string content = File.ReadAllText(batPath);
+        string props = FindInstalledProperties(serverDir);
+        if (props != null)
+            PatchOneJvmFile(props);
+
+        if (batPath == null && props == null)
+            Console.WriteLine("  AVISO: nenhum arquivo de memoria encontrado; ajuste manualmente se precisar.");
+    }
+
+    static void PatchOneJvmFile(string path)
+    {
+        string label = Path.GetFileName(path);
+        string content = File.ReadAllText(path);
 
         if (content.Contains("-Xmx4096m") && content.Contains("UseG1GC"))
-        { Console.WriteLine("OK (ja configurado)"); return; }
+        {
+            Console.WriteLine();
+            Console.WriteLine("  [OK] " + label);
+            return;
+        }
 
         content = Regex.Replace(content, @"-Xmx\S+", "-Xmx4096m");
         if (!content.Contains("UseG1GC"))
             content = content.Replace("java ", "java -XX:+UseG1GC ");
 
-        File.WriteAllText(batPath, content);
-        Console.WriteLine("OK (atualizado)");
+        File.WriteAllText(path, content);
+        Console.WriteLine();
+        Console.WriteLine("  [ATUALIZADO] " + path);
+    }
+
+    static string FindInstalledProperties(string serverDir)
+    {
+        try
+        {
+            DirectoryInfo dir = new DirectoryInfo(serverDir);
+            for (int i = 0; i < 5 && dir != null; i++, dir = dir.Parent)
+            {
+                string p = Path.Combine(dir.FullName, "installed.properties");
+                if (File.Exists(p)) return p;
+            }
+        }
+        catch { /* ignore */ }
+        return null;
     }
 
     static string FindStartServerBat(string serverDir)
@@ -260,11 +298,12 @@ class XMageInstaller
             Path.Combine(serverDir, "..", "xmage", "startServer.bat"),
         };
         foreach (string c in candidates)
-            if (File.Exists(c)) return Path.GetFullPath(c);
+        {
+            string full = Path.GetFullPath(c);
+            if (File.Exists(full)) return full;
+        }
         return null;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     static void Header()
     {

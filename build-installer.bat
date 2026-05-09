@@ -3,8 +3,8 @@ setlocal
 title XMage - Build Installer EXE
 
 set CSC=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
-set SRC=C:\Users\diego\Desktop\XMage\installer-src\XMageInstaller.cs
-set OUT=C:\Users\diego\Desktop\XMage\XMageAIPatch.exe
+set SRC=%~dp0installer-src\XMageInstaller.cs
+set OUT=%~dp0XMageAIPatch.exe
 
 echo ============================================
 echo  XMage AI - Build Installer EXE
