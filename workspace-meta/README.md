@@ -10,7 +10,9 @@ Esta pasta guarda **cópias** do que define o patch de IA no dia a dia: regras d
 
 ## Sincronizar com a árvore principal do patch
 
-Se editas em `...\Desktop\XMage\` (AGENTS, CLAUDE, regras, `memory/`, `.bat`), **volta a copiar** para `workspace-meta/` antes de `git commit` no `Xmage-improved`, para o histórico do GitHub ficar alinhado. Os `.bat` e o `CLAUDE.md` usam caminhos absolutos do Diego — noutro PC, ajusta `JAVA_HOME`, `MAVEN`, `SOURCE`, `LIB`, `PLUGINS`, `RELEASE_DIR`.
+A **fonte de edição** é a raiz do workspace XMage no Desktop (`.cursor/rules/`, `AGENTS.md`, etc.). O agente no Cursor deve seguir a rotina em **`.cursor/rules/xmage-orchestrator.mdc`** (secção «Espelho workspace-meta»): copiar para aqui antes de `git commit`/`push` no `Xmage-improved`.
+
+Se editas manualmente em `...\Desktop\XMage\` (AGENTS, CLAUDE, regras, `memory/`, `.bat`), **volta a copiar** para `workspace-meta/` antes de `git commit` no `Xmage-improved`, para o histórico do GitHub ficar alinhado. Os `.bat` e o `CLAUDE.md` usam caminhos absolutos do Diego — noutro PC, ajusta `JAVA_HOME`, `MAVEN`, `SOURCE`, `LIB`, `PLUGINS`, `RELEASE_DIR`.
 
 ## Conteúdo
 

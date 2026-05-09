@@ -11,6 +11,23 @@ Este workspace **não** é colaboração no repositório oficial do XMage. Objet
 
 - **`CLAUDE.md`** (raiz): caminhos Windows, Maven, três JARs, tabela de sprints/arquivos, calibração, sync upstream, publicação, pendentes.
 - **`memory/project_xmage.md`**: estado curto, backlog e notas — atualizar durante o trabalho, não só no fim.
+- **`Xmage-improved/workspace-meta/`**: espelho no Git do kit Cursor + docs (sem `mage-source`) — ver secção seguinte.
+
+## Espelho `Xmage-improved/workspace-meta/` (rotina do agente)
+
+Sempre que editar na **raiz deste workspace** qualquer um destes ficheiros — **ou** antes de `git commit` / `git push` no repo **`Xmage-improved`** — o agente **deve** atualizar o espelho (cópia por cima):
+
+| Origem (raiz XMage) | Destino |
+|---------------------|---------|
+| `AGENTS.md` | `Xmage-improved/workspace-meta/AGENTS.md` |
+| `CLAUDE.md` | `Xmage-improved/workspace-meta/CLAUDE.md` |
+| `memory/project_xmage.md` | `Xmage-improved/workspace-meta/memory/project_xmage.md` |
+| `.cursor/rules/xmage-orchestrator.mdc` | `Xmage-improved/workspace-meta/.cursor/rules/xmage-orchestrator.mdc` |
+| `build-and-deploy-ai.bat`, `build-installer.bat`, `pack-release.bat` | `Xmage-improved/workspace-meta/` (mesmos nomes) |
+
+Regra extra: se **este** ficheiro de regras (`.cursor/rules/xmage-orchestrator.mdc`) for alterado, copiar **obrigatoriamente** para `workspace-meta/.cursor/rules/` antes de considerar a tarefa concluída ou fazer push no `Xmage-improved`.
+
+Em **`/session-close`** ou ao fechar trabalho com commit/push no `Xmage-improved`: verificar se o espelho está alinhado; se não estiver, copiar e incluir no commit (paths explícitos; sem `git add -A` salvo pedido do dono).
 
 ## Como falar com o Diego
 
@@ -39,4 +56,4 @@ JDK, Maven e comandos exatos: **`CLAUDE.md`**.
 
 ## Fecho de sessão (`/session-close`)
 
-Quando o dono pedir encerrar sessão neste workspace: além da skill global `session-close`, usar **`CLAUDE.md`** para decidir se roda **`build-and-deploy-ai.bat`** (alterações em `mage-source` relevantes à IA/Human) e se há **publicação** no repo `Xmage-improved` / GitHub Release (JARs + `XMageAIPatch.exe`) — nunca hardcodar esses nomes na skill global.
+Quando o dono pedir encerrar sessão neste workspace: além da skill global `session-close`, usar **`CLAUDE.md`** para decidir se roda **`build-and-deploy-ai.bat`** (alterações em `mage-source` relevantes à IA/Human) e se há **publicação** no repo `Xmage-improved` / GitHub Release (JARs + `XMageAIPatch.exe`) — nunca hardcodar esses nomes na skill global. Confirmar espelho **`workspace-meta/`** (secção acima) antes de commit/push no `Xmage-improved`.

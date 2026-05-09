@@ -9,3 +9,5 @@ Este repositório é o **workspace local do patch de IA** do XMage (Commander co
 Resumo humano: melhorar IA em Java (`mage-source`), compilar/deploy com `build-and-deploy-ai.bat`; **após update oficial** (você e amigos) reaplicar JARs com **`XMageAIPatch.exe`**. Explicações em português do Brasil, mudanças pequenas; não editar arquivos sem confirmação explícita.
 
 **Upstream:** agentes não fazem push, PR nem colaboração direta com `magefree/mage` — ver `.cursor/rules/xmage-orchestrator.mdc`.
+
+**Espelho Git:** antes de commit/push no `Xmage-improved`, copiar ficheiros alterados para `Xmage-improved/workspace-meta/` conforme `.cursor/rules/xmage-orchestrator.mdc`.
