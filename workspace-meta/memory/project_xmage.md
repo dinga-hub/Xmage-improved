@@ -14,3 +14,4 @@ Registro **curto** para agentes. Detalhes operacionais: [`CLAUDE.md`](../CLAUDE.
 ## Observações / riscos
 
 - Fluxo unificado pós-update oficial: **`XMageAIPatch.exe`** (detecta nomes dos JARs no disco). Dev local: `build-and-deploy-ai.bat`. Removidos da raiz: `reaplicar-patch-ai.bat`, `install-ai-patch.bat`; pasta duplicada `dist-repo` removida se existia.
+- **Espelho Git leve:** `Xmage-improved/workspace-meta/` (regras Cursor, `CLAUDE`, `AGENTS`, `memory/`, `.bat`) — antes de push no `Xmage-improved`, copiar alterações da raiz do workspace para lá; ver `workspace-meta/README.md`.
