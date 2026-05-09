@@ -2,6 +2,10 @@
 
 XMage Commander AI melhorado para partidas multiplayer locais.
 
+## Desenvolvimento / Cursor (`workspace-meta/`)
+
+Para **não perder** regras de agente, `CLAUDE.md`, notas e scripts sem versionar o `mage-source` gigante, existe a pasta **[`workspace-meta/`](workspace-meta/)** — espelho leve com `AGENTS.md`, `CLAUDE.md`, `memory/`, `.cursor/rules/` e `.bat`. Ver [`workspace-meta/README.md`](workspace-meta/README.md).
+
 ## Como instalar (amigos)
 
 ### Opção 1 — Instalador automático (recomendado)

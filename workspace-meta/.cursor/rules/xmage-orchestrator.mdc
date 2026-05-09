@@ -1,0 +1,42 @@
+---
+description: XMage patch IA local — contexto, fluxo e colaboração (Commander / bots)
+alwaysApply: true
+---
+
+# XMage — workspace do patch de IA
+
+Este workspace **não** é colaboração no repositório oficial do XMage. Objetivo: melhorar a **IA** (Java em `mage-source`), **build/deploy local**, e manter fluxo simples para amigos (**instalador + JARs**, repo de distribuição documentado no `CLAUDE.md`).
+
+## Fonte de verdade operacional
+
+- **`CLAUDE.md`** (raiz): caminhos Windows, Maven, três JARs, tabela de sprints/arquivos, calibração, sync upstream, publicação, pendentes.
+- **`memory/project_xmage.md`**: estado curto, backlog e notas — atualizar durante o trabalho, não só no fim.
+
+## Como falar com o Diego
+
+- Explicações em **português do Brasil**; passos claros; **diffs pequenos** e reversíveis.
+- Ele **não é dev profissional** — menos jargão; comandos completos quando for rodar algo.
+- Código e identificadores: convenção do **repositório** (em geral inglês).
+
+## Colaboração
+
+1. **Não aplicar edições** (Write/StrReplace) sem confirmação explícita: “pode implementar”, “sim”, “faz isso”, etc. Análise e leitura são livres.
+2. Ao fechar trabalho que mexe em build: validar `build-and-deploy-ai.bat` e o fluxo do **`XMageAIPatch.exe`** (reaplicar patch / release) conforme `CLAUDE.md`.
+3. **Git:** sem `git add .` / `git add -A` salvo pedido explícito; sem commit/push/PR sem pedido (salvo fluxo de publicação já acordado no `CLAUDE.md`).
+
+## Upstream oficial (`magefree/mage`)
+
+**Proibido** para agentes (salvo ordem explícita e contrária do dono): `git push` para o repositório oficial do XMage, abrir **pull request** no upstream, ou qualquer outra forma de colaboração direta com `magefree/mage`. Este workspace é **patch local + distribuição** (`Xmage-improved` / JARs), não canal de contribuição ao core.
+
+## Onde está o quê
+
+| Item | Caminho |
+|------|---------|
+| Fonte Java | `mage-source/` |
+| Servidor XMage local | `xmage/mage-server/` |
+
+JDK, Maven e comandos exatos: **`CLAUDE.md`**.
+
+## Fecho de sessão (`/session-close`)
+
+Quando o dono pedir encerrar sessão neste workspace: além da skill global `session-close`, usar **`CLAUDE.md`** para decidir se roda **`build-and-deploy-ai.bat`** (alterações em `mage-source` relevantes à IA/Human) e se há **publicação** no repo `Xmage-improved` / GitHub Release (JARs + `XMageAIPatch.exe`) — nunca hardcodar esses nomes na skill global.
