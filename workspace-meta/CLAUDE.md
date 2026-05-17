@@ -71,7 +71,7 @@ Ver passo 2 acima; em seguida compile quando for trabalhar em cima do código.
 | `SimulatedPlayer2.java` | Mage.Player.AI.MA | Fix X=0 |
 | `optimizers/impl/BoardwipeOptimizer.java` | Mage.Player.AI.MA | Sprint 5b: suprime boardwipe com vantagem (novo arquivo) |
 | `optimizers/impl/InstantTimingOptimizer.java` | Mage.Player.AI.MA | Sprint 5: timing de instants/flash (novo arquivo) |
-| `HumanPlayer.java` | Mage.Player.Human | Smart Skip F9 |
+| `HumanPlayer.java` | Mage.Player.Human | Smart Skip F5/F9/F11 |
 
 ## Sprints implementadas
 
@@ -88,7 +88,7 @@ Ver passo 2 acima; em seguida compile quando for trabalhar em cima do código.
 | 9 | Multi-block death check: não ataca quando 2+ blockers matam | `ComputerPlayer6.java` |
 | Fix X=0 | `minX = max(1, minX)` em variableManaCost | `SimulatedPlayer2.java` |
 | Floating mana | Mana no pool = +100 pts; evita gastar mana sem valor | `GameStateEvaluator2.java` |
-| Smart Skip F9 | Para auto-skip ao detectar remoção/boardwipe no stack | `HumanPlayer.java` |
+| Smart Skip F5/F9/F11 | Para auto-skip: alvo em você/permanente seu, boardwipe, dano a cada oponente, dano mirado em jogador (F5/F9/F11) | `HumanPlayer.java` |
 
 ## Calibração — valores ajustáveis
 
@@ -164,7 +164,7 @@ gh release create v1.4.58-latest --repo dinga-hub/Xmage-improved \
 
 ## Tópicos pendentes
 
-### Smart Skip F9 — evolução possível
+### Smart Skip F5/F9/F11 — evolução possível
 Modo alternativo (ex: Shift+F9) que para também para boardwipes não-targetados (DestroyAll, ExileAll, etc.).
 Abordagem preferida: novo `PlayerAction` enum + boolean no player + botão em `GamePanel.java`.
 Decidir na próxima sessão se vale o custo de UI.
