@@ -67,7 +67,7 @@ Ver passo 2 acima; em seguida compile quando for trabalhar em cima do código.
 | `score/ArtificialScoringSystem.java` | Mage.Player.AI.MA | Sprint 6: valoriza criaturas utilitárias |
 | `ai/PossibleTargetsComparator.java` | Mage.Player.AI.MA | Sprint 4: remoção ponderada por ameaça |
 | `ai/ComputerPlayer.java` | Mage.Player.AI | Sprint 4: skip remoção de alvos fracos |
-| `ComputerPlayer6.java` | Mage.Player.AI.MA | Sprints 2, 3, 7, 9: ataque/defesa inteligente |
+| `ComputerPlayer6.java` | Mage.Player.AI.MA | Sprints 2, 3, 7, 9, 16: ataque/defesa + reserva chumps cross-opponent |
 | `SimulatedPlayer2.java` | Mage.Player.AI.MA | Fix X=0 |
 | `optimizers/impl/BoardwipeOptimizer.java` | Mage.Player.AI.MA | Sprint 5b: suprime boardwipe com vantagem (novo arquivo) |
 | `optimizers/impl/InstantTimingOptimizer.java` | Mage.Player.AI.MA | Sprint 5: timing de instants/flash (novo arquivo) |
@@ -86,6 +86,7 @@ Ver passo 2 acima; em seguida compile quando for trabalhar em cima do código.
 | 6 | Scoring utilitário: 70% combat-scaled + 30% base fixo | `ArtificialScoringSystem.java` |
 | 7 | Suprime ataque inútil (sem trample/lifelink, não mata blocker) | `ComputerPlayer6.java` |
 | 9 | Multi-block death check: não ataca quando 2+ blockers matam | `ComputerPlayer6.java` |
+| 16 | Reserva chumps expendable (`evaluatePermanent`) vs ameaça ground de outros oponentes; Sprint 12 só expendable | `ComputerPlayer6.java` |
 | Fix X=0 | `minX = max(1, minX)` em variableManaCost | `SimulatedPlayer2.java` |
 | Floating mana | Mana no pool = +100 pts; evita gastar mana sem valor | `GameStateEvaluator2.java` |
 | Smart Skip F5/F9/F11 | Para auto-skip: alvo em você/permanente seu, boardwipe, dano a cada oponente, dano mirado em jogador (F5/F9/F11) | `HumanPlayer.java` |
@@ -98,6 +99,10 @@ Ver passo 2 acima; em seguida compile quando for trabalhar em cima do código.
 | `minDepth` floor | 5 | bytecode / build config |
 | JVM heap | Xmx4096m + G1GC | `XMageAIPatch.exe` (startServer.bat + `installed.properties` se existir) |
 | `DEFENDER_THRESHOLD` | 3000 | `ComputerPlayer6.java` |
+| `HIGH_VALUE_THRESHOLD` | 1200 | `ComputerPlayer6.java` (engine — não reservar como chump) |
+| `CHUMP_RESERVE_MAX_SCORE` | 900 | `ComputerPlayer6.java` |
+| `CHUMP_THREAT_MIN_POWER` | 5 | `ComputerPlayer6.java` |
+| `MAX_CHUMPS_RESERVED` | 3 | `ComputerPlayer6.java` |
 | `MIN_REMOVAL_TARGET_SCORE` | 800 | `ComputerPlayer.java` |
 | `THREAT_NORMALIZER` | 5000 | `PossibleTargetsComparator.java` |
 | `FLOATING_MANA_VALUE` | 100 | `GameStateEvaluator2.java` |
