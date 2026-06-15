@@ -47,7 +47,8 @@ class XMageInstaller
         string libDir     = Path.Combine(serverDir, "lib");
         string pluginsDir = Path.Combine(serverDir, "plugins");
 
-        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar");
+        // Exclude mage-player-ai-mcts / draftbot — glob "mage-player-ai-*.jar" matches those too.
+        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar", "mage-player-ai-mcts-", "mage-player-ai-draftbot-");
         string jarAiMa  = DetectJar(pluginsDir, "mage-player-ai-ma-*.jar");
         string jarHuman = DetectJar(pluginsDir, "mage-player-human-*.jar");
 
@@ -176,7 +177,7 @@ class XMageInstaller
     /// Picks the versioned JAR name already present. If several match (rare), uses newest LastWriteTime.
     /// Excludes *.backup. Returns null if none — caller must abort (do not guess a version string).
     /// </summary>
-    static string DetectJar(string dir, string pattern)
+    static string DetectJar(string dir, string pattern, params string[] excludeNameContains)
     {
         if (!Directory.Exists(dir)) return null;
 
@@ -185,7 +186,12 @@ class XMageInstaller
             .Where(p =>
             {
                 string n = Path.GetFileName(p);
-                return !n.EndsWith(".backup", StringComparison.OrdinalIgnoreCase);
+                if (n.EndsWith(".backup", StringComparison.OrdinalIgnoreCase)) return false;
+                foreach (string ex in excludeNameContains)
+                {
+                    if (n.IndexOf(ex, StringComparison.OrdinalIgnoreCase) >= 0) return false;
+                }
+                return true;
             })
             .OrderByDescending(p => new FileInfo(p).LastWriteTimeUtc)
             .ToArray();

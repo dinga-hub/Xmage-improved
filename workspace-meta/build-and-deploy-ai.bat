@@ -11,7 +11,7 @@ set "JAR_AI="
 set "JAR_AI_MA="
 set "JAR_HUMAN="
 for %%F in ("%LIB%\mage-player-ai-*.jar") do (
-  if not "%%~nxF"=="mage-player-ai-*.jar" set "JAR_AI=%%~nxF"
+  echo %%~nxF| findstr /i /c:"-mcts-" /c:"-draftbot-" >nul || set "JAR_AI=%%~nxF"
 )
 for %%F in ("%PLUGINS%\mage-player-ai-ma-*.jar") do (
   if not "%%~nxF"=="mage-player-ai-ma-*.jar" set "JAR_AI_MA=%%~nxF"
