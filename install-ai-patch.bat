@@ -119,17 +119,49 @@ if exist "%PLUGINS%\%JAR_AI_MA%" copy "%PLUGINS%\%JAR_AI_MA%" "%PLUGINS%\%JAR_AI
 if exist "%PLUGINS%\%JAR_HUMAN%" copy "%PLUGINS%\%JAR_HUMAN%" "%PLUGINS%\%JAR_HUMAN%.backup" /Y >nul 2>&1
 
 :: --- Download e verificacao ---
-echo [1/3] Baixando mage-player-ai.jar...
+echo [1/5] Baixando mage-player-ai.jar...
 call :baixar "%GITHUB_BASE%/mage-player-ai.jar" "%LIB%\%JAR_AI%"
 if %errorlevel% neq 0 ( echo ERRO no download 1. Abortando. & pause & exit /b 1 )
 
-echo [2/3] Baixando mage-player-ai-ma.jar...
+echo [2/5] Baixando mage-player-ai-ma.jar...
 call :baixar "%GITHUB_BASE%/mage-player-ai-ma.jar" "%PLUGINS%\%JAR_AI_MA%"
 if %errorlevel% neq 0 ( echo ERRO no download 2. Abortando. & pause & exit /b 1 )
 
-echo [3/3] Baixando mage-player-human.jar...
+echo [3/5] Baixando mage-player-human.jar...
 call :baixar "%GITHUB_BASE%/mage-player-human.jar" "%PLUGINS%\%JAR_HUMAN%"
 if %errorlevel% neq 0 ( echo ERRO no download 3. Abortando. & pause & exit /b 1 )
+
+:: --- Detect core mage-*.jar (same exclusions as build-and-deploy-ai.bat) ---
+set "JAR_CORE="
+for %%F in ("%LIB%\mage-*.jar") do (
+  echo %%~nxF| findstr /i /c:"mage-common-" /c:"mage-sets-" /c:"mage-server-" /c:"mage-game-" /c:"mage-player-" /c:"mage-tournament-" /c:"mage-ai-" >nul
+  if errorlevel 1 set "JAR_CORE=%%~nxF"
+)
+if "!JAR_CORE!"=="" (
+  echo ERRO: nao encontrei mage-*.jar core em lib\
+  pause & exit /b 1
+)
+
+echo [4/5] Injetando GameChangerRegistry em lib\!JAR_CORE!...
+set "GC_TMP=%TEMP%\GameChangerRegistry.class"
+call :baixar "%GITHUB_BASE%/GameChangerRegistry.class" "%GC_TMP%"
+if %errorlevel% neq 0 ( echo ERRO no download GameChangerRegistry. Abortando. & pause & exit /b 1 )
+if exist "%LIB%\!JAR_CORE!" copy "%LIB%\!JAR_CORE!" "%LIB%\!JAR_CORE!.backup" /Y >nul 2>&1
+powershell -NoProfile -Command ^
+  "$ErrorActionPreference='Stop';" ^
+  "Add-Type -AssemblyName System.IO.Compression.FileSystem;" ^
+  "$jar='%LIB%\!JAR_CORE!'; $cls='%GC_TMP%'; $entry='mage/cards/repository/GameChangerRegistry.class';" ^
+  "$fs=[IO.File]::Open($jar,'Open','ReadWrite');" ^
+  "try { $z=[IO.Compression.ZipArchive]::new($fs,[IO.Compression.ZipArchiveMode]::Update);" ^
+  "  $old=$z.GetEntry($entry); if ($old) { $old.Delete() };" ^
+  "  $e=$z.CreateEntry($entry); $es=$e.Open(); $cs=[IO.File]::OpenRead($cls); $cs.CopyTo($es); $cs.Close(); $es.Close(); $z.Dispose() }" ^
+  "finally { $fs.Close() }"
+if %errorlevel% neq 0 (
+  echo ERRO na injecao. Restaurando backup...
+  if exist "%LIB%\!JAR_CORE!.backup" copy "%LIB%\!JAR_CORE!.backup" "%LIB%\!JAR_CORE!" /Y >nul
+  pause & exit /b 1
+)
+echo   OK GameChangerRegistry injetado
 
 goto :eof
 
@@ -144,13 +176,15 @@ if "%DOWNLOADER%"=="curl" (
     powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { Invoke-WebRequest -Uri '%DL_URL%' -OutFile '%DL_OUT%' -UseBasicParsing } catch { exit 1 }"
 )
 
-:: Verifica se o arquivo foi baixado e tem tamanho razoavel (>10KB)
+:: Verifica se o arquivo foi baixado. JARs >10KB; .class >200 bytes.
 if not exist "%DL_OUT%" (
     echo   ERRO: arquivo nao foi criado: %DL_OUT%
     exit /b 1
 )
 for %%A in ("%DL_OUT%") do set FSIZE=%%~zA
-if !FSIZE! LSS 10240 (
+set MINSIZE=10240
+echo %DL_OUT%| findstr /i "\.class$" >nul && set MINSIZE=200
+if !FSIZE! LSS !MINSIZE! (
     echo   ERRO: arquivo muito pequeno ^(!FSIZE! bytes^) - download falhou
     exit /b 1
 )
@@ -163,7 +197,7 @@ echo.
 :: ============================================
 :: ETAPA 3: Patch de memoria JVM
 :: ============================================
-echo [4/4] Aplicando patch de memoria JVM...
+echo [5/5] Aplicando patch de memoria JVM...
 
 python -c "
 import re, os, sys

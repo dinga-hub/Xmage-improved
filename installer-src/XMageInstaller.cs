@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -9,13 +11,18 @@ using Microsoft.Win32;
 /// XMage AI Patch Installer
 /// - Auto-detects XMage installation via registry + common paths
 /// - Detects versioned JAR filenames already on disk (any XMage server version)
-/// - Downloads 3 unversioned JARs from GitHub Releases, writes using those exact names
-/// - Patches startServer.bat + installed.properties (if found) for JVM heap / G1GC
+/// - Downloads 3 player JARs from GitHub Releases
+/// - Downloads GameChangerRegistry.class and injects into core mage-*.jar
+///   (survives Grath updates that wipe custom mage.jar; re-run this patcher)
+/// - Patches startServer.bat + installed.properties for JVM heap / G1GC / saveGameHistory
 /// </summary>
 class XMageInstaller
 {
     const string BASE_URL = "https://github.com/dinga-hub/Xmage-improved/releases/latest/download";
     const long   MIN_JAR_BYTES = 10240; // 10 KB sanity check
+    const long   MIN_CLASS_BYTES = 200;
+    const string GC_CLASS_ASSET = "GameChangerRegistry.class";
+    const string GC_ENTRY = "mage/cards/repository/GameChangerRegistry.class";
 
     static int Main(string[] args)
     {
@@ -51,6 +58,7 @@ class XMageInstaller
         string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar", "mage-player-ai-mcts-", "mage-player-ai-draftbot-");
         string jarAiMa  = DetectJar(pluginsDir, "mage-player-ai-ma-*.jar");
         string jarHuman = DetectJar(pluginsDir, "mage-player-human-*.jar");
+        string jarCore  = DetectCoreJar(libDir);
 
         if (jarAi == null)
         {
@@ -71,18 +79,26 @@ class XMageInstaller
             Console.WriteLine("ERRO: nao encontrei mage-player-human-*.jar em plugins\\.");
             Pause(); return 1;
         }
+        if (jarCore == null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("ERRO: nao encontrei mage-*.jar core em lib\\.");
+            Pause(); return 1;
+        }
 
         Console.WriteLine();
         Console.WriteLine("JARs detectados (independentes da versao do servidor):");
         Console.WriteLine("  lib\\"     + jarAi);
         Console.WriteLine("  plugins\\" + jarAiMa);
         Console.WriteLine("  plugins\\" + jarHuman);
+        Console.WriteLine("  lib\\"     + jarCore + "  (core — recebe GameChangerRegistry)");
         Console.WriteLine();
 
         bool ok = true;
-        ok = ok && DownloadJar("mage-player-ai.jar",    Path.Combine(libDir,     jarAi),    1, 3);
-        ok = ok && DownloadJar("mage-player-ai-ma.jar", Path.Combine(pluginsDir, jarAiMa),  2, 3);
-        ok = ok && DownloadJar("mage-player-human.jar", Path.Combine(pluginsDir, jarHuman), 3, 3);
+        ok = ok && DownloadJar("mage-player-ai.jar",    Path.Combine(libDir,     jarAi),    1, 5);
+        ok = ok && DownloadJar("mage-player-ai-ma.jar", Path.Combine(pluginsDir, jarAiMa),  2, 5);
+        ok = ok && DownloadJar("mage-player-human.jar", Path.Combine(pluginsDir, jarHuman), 3, 5);
+        ok = ok && InjectGameChangerRegistry(Path.Combine(libDir, jarCore), 4, 5);
 
         if (!ok)
         {
@@ -91,12 +107,14 @@ class XMageInstaller
             Pause(); return 1;
         }
 
-        PatchJvmAndMemoryFiles(serverDir);
+        PatchJvmAndMemoryFiles(serverDir, 5, 5);
 
         Console.WriteLine();
         Console.WriteLine("============================================");
         Console.WriteLine(" Patch instalado com sucesso!");
         Console.WriteLine(" Reinicie o servidor XMage para aplicar.");
+        Console.WriteLine(" Apos update oficial do Grath: rode este");
+        Console.WriteLine(" instalador de novo (core + players).");
         Console.WriteLine("============================================");
         Pause();
         return 0;
@@ -200,6 +218,20 @@ class XMageInstaller
         return Path.GetFileName(candidates[0]);
     }
 
+    /// <summary>
+    /// Core framework JAR (mage-1.4.60.jar), not player/game/sets/server modules.
+    /// Same exclusion list as build-and-deploy-ai.bat.
+    /// </summary>
+    static string DetectCoreJar(string libDir)
+    {
+        string[] exclude =
+        {
+            "mage-common-", "mage-sets-", "mage-server-", "mage-game-",
+            "mage-player-", "mage-tournament-", "mage-ai-",
+        };
+        return DetectJar(libDir, "mage-*.jar", exclude);
+    }
+
     static bool DownloadJar(string jarName, string destPath, int step, int total)
     {
         Console.Write("[" + step + "/" + total + "] Baixando " + jarName + "... ");
@@ -212,7 +244,7 @@ class XMageInstaller
 
             using (WebClient wc = new WebClient())
             {
-                wc.Headers["User-Agent"] = "XMageAIPatch/1.0";
+                wc.Headers["User-Agent"] = "XMageAIPatch/1.1";
                 wc.DownloadFile(BASE_URL + "/" + jarName, destPath);
             }
 
@@ -235,36 +267,96 @@ class XMageInstaller
         }
     }
 
+    /// <summary>
+    /// Downloads GameChangerRegistry.class and upserts it into the core mage JAR (ZIP).
+    /// WHY inject instead of replacing mage.jar: full Mage rebuild on Grath 1.4.60 can
+    /// break cards (NoSuchMethodError). One class is ABI-safe and restores Sprint 19 GC list.
+    /// </summary>
+    static bool InjectGameChangerRegistry(string coreJarPath, int step, int total)
+    {
+        Console.Write("[" + step + "/" + total + "] GameChangerRegistry no core... ");
+
+        string backupPath = coreJarPath + ".backup";
+        string tempClass = Path.Combine(Path.GetTempPath(), "xmage-ai-" + GC_CLASS_ASSET);
+
+        try
+        {
+            using (WebClient wc = new WebClient())
+            {
+                wc.Headers["User-Agent"] = "XMageAIPatch/1.1";
+                wc.DownloadFile(BASE_URL + "/" + GC_CLASS_ASSET, tempClass);
+            }
+
+            long classSize = new FileInfo(tempClass).Length;
+            if (classSize < MIN_CLASS_BYTES)
+            {
+                Console.WriteLine("ERRO: class muito pequena (" + classSize + " bytes).");
+                return false;
+            }
+
+            if (File.Exists(coreJarPath))
+                File.Copy(coreJarPath, backupPath, overwrite: true);
+
+            using (FileStream fs = new FileStream(coreJarPath, FileMode.Open, FileAccess.ReadWrite))
+            using (ZipArchive zip = new ZipArchive(fs, ZipArchiveMode.Update))
+            {
+                ZipArchiveEntry existing = zip.GetEntry(GC_ENTRY);
+                if (existing != null)
+                    existing.Delete();
+
+                ZipArchiveEntry entry = zip.CreateEntry(GC_ENTRY, CompressionLevel.Optimal);
+                using (Stream entryStream = entry.Open())
+                using (FileStream classStream = File.OpenRead(tempClass))
+                {
+                    classStream.CopyTo(entryStream);
+                }
+            }
+
+            Console.WriteLine("OK (injetado em " + Path.GetFileName(coreJarPath) + ")");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("ERRO: " + ex.Message);
+            RestoreBackup(backupPath, coreJarPath);
+            return false;
+        }
+        finally
+        {
+            try { if (File.Exists(tempClass)) File.Delete(tempClass); } catch { /* ignore */ }
+        }
+    }
+
     static void RestoreBackup(string backupPath, string destPath)
     {
         try { if (File.Exists(backupPath)) File.Copy(backupPath, destPath, overwrite: true); }
         catch { /* best-effort */ }
     }
 
-    static void PatchJvmAndMemoryFiles(string serverDir)
+    static void PatchJvmAndMemoryFiles(string serverDir, int step, int total)
     {
-        Console.WriteLine("[4/4] Memoria JVM (-Xmx4096m + G1GC)");
+        Console.WriteLine("[" + step + "/" + total + "] Memoria JVM (-Xmx4096m + G1GC + saveGameHistory)");
 
         string batPath = FindStartServerBat(serverDir);
         if (batPath != null)
-            PatchOneJvmFile(batPath);
+            PatchStartServerBat(batPath);
         else
             Console.WriteLine("  AVISO: startServer.bat nao encontrado.");
 
         string props = FindInstalledProperties(serverDir);
         if (props != null)
-            PatchOneJvmFile(props);
+            PatchInstalledProperties(props);
 
         if (batPath == null && props == null)
             Console.WriteLine("  AVISO: nenhum arquivo de memoria encontrado; ajuste manualmente se precisar.");
     }
 
-    static void PatchOneJvmFile(string path)
+    static void PatchStartServerBat(string path)
     {
         string label = Path.GetFileName(path);
         string content = File.ReadAllText(path);
 
-        if (content.Contains("-Xmx4096m") && content.Contains("UseG1GC"))
+        if (content.Contains("-Xmx4096m") && content.Contains("UseG1GC") && content.Contains("saveGameHistory=true"))
         {
             Console.WriteLine();
             Console.WriteLine("  [OK] " + label);
@@ -274,8 +366,61 @@ class XMageInstaller
         content = Regex.Replace(content, @"-Xmx\S+", "-Xmx4096m");
         if (!content.Contains("UseG1GC"))
             content = content.Replace("java ", "java -XX:+UseG1GC ");
+        if (!content.Contains("saveGameHistory=true"))
+            content = content.Replace("java ", "java -Dxmage.dataCollectors.saveGameHistory=true ");
 
         File.WriteAllText(path, content);
+        Console.WriteLine();
+        Console.WriteLine("  [ATUALIZADO] " + path);
+    }
+
+    /// <summary>
+    /// Launcher reads xmage.server.javaopts from installed.properties (parent of mage-server).
+    /// </summary>
+    static void PatchInstalledProperties(string path)
+    {
+        const string key = "xmage.server.javaopts=";
+        string[] lines = File.ReadAllLines(path);
+        bool changed = false;
+        var output = new List<string>();
+
+        foreach (string rawLine in lines)
+        {
+            string line = rawLine;
+            if (!line.StartsWith(key))
+            {
+                output.Add(line);
+                continue;
+            }
+
+            string val = line.Substring(key.Length);
+            if (!val.Contains("-Xmx4096m"))
+            {
+                val = Regex.Replace(val, @"-Xmx\S+", "-Xmx4096m");
+                changed = true;
+            }
+            if (!val.Contains("UseG1GC"))
+            {
+                val += " -XX\\:+UseG1GC";
+                changed = true;
+            }
+            if (!val.Contains("saveGameHistory"))
+            {
+                val += " -Dxmage.dataCollectors.saveGameHistory\\=true";
+                changed = true;
+            }
+
+            output.Add(key + val);
+        }
+
+        if (!changed && File.ReadAllText(path).Contains("saveGameHistory"))
+        {
+            Console.WriteLine();
+            Console.WriteLine("  [OK] installed.properties");
+            return;
+        }
+
+        File.WriteAllLines(path, output);
         Console.WriteLine();
         Console.WriteLine("  [ATUALIZADO] " + path);
     }

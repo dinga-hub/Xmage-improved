@@ -17,7 +17,11 @@ if not exist "%CSC%" (
 )
 
 echo Compilando %SRC%...
-"%CSC%" /nologo /optimize+ /out:"%OUT%" "%SRC%"
+REM System.IO.Compression* needed for GameChangerRegistry inject into mage-*.jar
+"%CSC%" /nologo /optimize+ /target:exe ^
+  /r:System.IO.Compression.dll ^
+  /r:System.IO.Compression.FileSystem.dll ^
+  /out:"%OUT%" "%SRC%"
 if %errorlevel% neq 0 (
     echo.
     echo ERRO na compilacao.
@@ -29,5 +33,6 @@ echo OK: %OUT%
 echo Tamanho:
 dir "%OUT%" | findstr "XMageAIPatch"
 echo.
-echo Proximo passo: subir XMageAIPatch.exe no GitHub Releases junto com os 3 JARs.
+echo Proximo passo: subir XMageAIPatch.exe + 3 JARs + GameChangerRegistry.class
+echo no GitHub Releases.
 pause

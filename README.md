@@ -15,21 +15,21 @@ Para **não perder** regras de agente, `CLAUDE.md`, notas e scripts sem versiona
 3. Dê duplo clique e siga as instruções
 4. Reinicie o servidor XMage
 
-> Detecta automaticamente a pasta do XMage, o nome correto dos JARs e aplica o patch de memória JVM.
+> Detecta a pasta do XMage, troca os 3 JARs de IA, **injeta `GameChangerRegistry` no `mage-*.jar` core** (necessário após update do Grath) e aplica o patch de memória JVM.
+>
+> **Sempre rode de novo depois de um update oficial** — o launcher sobrescreve `lib\` / `plugins\`.
 
-### Opção 2 — Manual (3 arquivos)
+### Opção 2 — Manual (3 JARs + classe)
 
-1. Baixe os 3 JARs da pasta [`jars/`](jars/):
-   - [`mage-player-ai.jar`](jars/mage-player-ai.jar)
-   - [`mage-player-ai-ma.jar`](jars/mage-player-ai-ma.jar)
-   - [`mage-player-human.jar`](jars/mage-player-human.jar)
+1. Baixe da [release latest](../../releases/latest):
+   - `mage-player-ai.jar` → `mage-server\lib\mage-player-ai-*.jar` (nome versionado que já existir)
+   - `mage-player-ai-ma.jar` → `mage-server\plugins\mage-player-ai-ma-*.jar`
+   - `mage-player-human.jar` → `mage-server\plugins\mage-player-human-*.jar`
+   - `GameChangerRegistry.class` — injete no core com:
+     `jar uf lib\mage-1.4.60.jar mage/cards/repository/GameChangerRegistry.class`
+     (coloque o `.class` no path certo antes, ou use o `.exe`)
 
-2. Substitua na pasta do XMage (feche o servidor antes):
-   - `mage-player-ai.jar` → `mage-server\lib\mage-player-ai-1.4.58.jar`
-   - `mage-player-ai-ma.jar` → `mage-server\plugins\mage-player-ai-ma-1.4.58.jar`
-   - `mage-player-human.jar` → `mage-server\plugins\mage-player-human-1.4.58.jar`
-
-3. Reinicie o servidor XMage
+2. Reinicie o servidor XMage
 
 ## O que muda nos bots
 
