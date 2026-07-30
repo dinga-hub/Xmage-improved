@@ -82,16 +82,23 @@ set "LIB=%SRVDIR%\lib"
 set "PLUGINS=%SRVDIR%\plugins"
 
 :: --- Detectar nome correto dos JARs existentes ---
-set "JAR_AI=mage-player-ai-1.4.58.jar"
-set "JAR_AI_MA=mage-player-ai-ma-1.4.58.jar"
-set "JAR_HUMAN=mage-player-human-1.4.58.jar"
+:: Grath 1.4.60+ renamed MAD plugin: mage-player-ai-ma → mage-player-ai-mad
+set "JAR_AI=mage-player-ai-1.4.60.jar"
+set "JAR_AI_MA="
+set "JAR_HUMAN=mage-player-human-1.4.60.jar"
 
 for %%F in ("%LIB%\mage-player-ai-*.jar") do (
-    echo %%~nxF| findstr /i /c:"-mcts-" /c:"-draftbot-" >nul || set "JAR_AI=%%~nxF"
+    echo %%~nxF| findstr /i /c:"-mcts-" /c:"-draftbot-" /c:"-mad-" /c:"-ma-" >nul || set "JAR_AI=%%~nxF"
 )
-for %%F in ("%PLUGINS%\mage-player-ai-ma-*.jar") do (
-    if not "%%~nxF"=="mage-player-ai-ma-*.jar" set "JAR_AI_MA=%%~nxF"
+for %%F in ("%PLUGINS%\mage-player-ai-mad-*.jar") do (
+    if not "%%~nxF"=="mage-player-ai-mad-*.jar" set "JAR_AI_MA=%%~nxF"
 )
+if "!JAR_AI_MA!"=="" (
+    for %%F in ("%PLUGINS%\mage-player-ai-ma-*.jar") do (
+        if not "%%~nxF"=="mage-player-ai-ma-*.jar" set "JAR_AI_MA=%%~nxF"
+    )
+)
+if "!JAR_AI_MA!"=="" set "JAR_AI_MA=mage-player-ai-mad-1.4.60.jar"
 for %%F in ("%PLUGINS%\mage-player-human-*.jar") do (
     if not "%%~nxF"=="mage-player-human-*.jar" set "JAR_HUMAN=%%~nxF"
 )

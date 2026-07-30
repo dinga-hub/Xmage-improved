@@ -54,9 +54,11 @@ class XMageInstaller
         string libDir     = Path.Combine(serverDir, "lib");
         string pluginsDir = Path.Combine(serverDir, "plugins");
 
-        // Exclude mage-player-ai-mcts / draftbot — glob "mage-player-ai-*.jar" matches those too.
-        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar", "mage-player-ai-mcts-", "mage-player-ai-draftbot-");
-        string jarAiMa  = DetectJar(pluginsDir, "mage-player-ai-ma-*.jar");
+        // Exclude mage-player-ai-mcts / draftbot / mad — glob "mage-player-ai-*.jar" matches those too.
+        // Grath 1.4.60+ renamed the MAD plugin: mage-player-ai-ma-* → mage-player-ai-mad-*.
+        string jarAi    = DetectJar(libDir,     "mage-player-ai-*.jar",
+            "mage-player-ai-mcts-", "mage-player-ai-draftbot-", "mage-player-ai-mad-", "mage-player-ai-ma-");
+        string jarAiMa  = DetectMadPluginJar(pluginsDir);
         string jarHuman = DetectJar(pluginsDir, "mage-player-human-*.jar");
         string jarCore  = DetectCoreJar(libDir);
 
@@ -70,7 +72,7 @@ class XMageInstaller
         if (jarAiMa == null)
         {
             Console.WriteLine();
-            Console.WriteLine("ERRO: nao encontrei mage-player-ai-ma-*.jar em plugins\\.");
+            Console.WriteLine("ERRO: nao encontrei mage-player-ai-mad-*.jar nem mage-player-ai-ma-*.jar em plugins\\.");
             Pause(); return 1;
         }
         if (jarHuman == null)
@@ -230,6 +232,16 @@ class XMageInstaller
             "mage-player-", "mage-tournament-", "mage-ai-",
         };
         return DetectJar(libDir, "mage-*.jar", exclude);
+    }
+
+    /// <summary>
+    /// MAD AI plugin: prefer current Grath name (ai-mad), fall back to older ai-ma.
+    /// </summary>
+    static string DetectMadPluginJar(string pluginsDir)
+    {
+        string mad = DetectJar(pluginsDir, "mage-player-ai-mad-*.jar");
+        if (mad != null) return mad;
+        return DetectJar(pluginsDir, "mage-player-ai-ma-*.jar");
     }
 
     static bool DownloadJar(string jarName, string destPath, int step, int total)

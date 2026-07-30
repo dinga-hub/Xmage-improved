@@ -17,10 +17,16 @@ for %%F in ("%LIB%\mage-*.jar") do (
   if errorlevel 1 set "JAR_CORE=%%~nxF"
 )
 for %%F in ("%LIB%\mage-player-ai-*.jar") do (
-  echo %%~nxF| findstr /i /c:"-mcts-" /c:"-draftbot-" >nul || set "JAR_AI=%%~nxF"
+  echo %%~nxF| findstr /i /c:"-mcts-" /c:"-draftbot-" /c:"-mad-" /c:"-ma-" >nul || set "JAR_AI=%%~nxF"
 )
-for %%F in ("%PLUGINS%\mage-player-ai-ma-*.jar") do (
-  if not "%%~nxF"=="mage-player-ai-ma-*.jar" set "JAR_AI_MA=%%~nxF"
+:: Grath 1.4.60+ renamed MAD plugin: ai-ma → ai-mad
+for %%F in ("%PLUGINS%\mage-player-ai-mad-*.jar") do (
+  if not "%%~nxF"=="mage-player-ai-mad-*.jar" set "JAR_AI_MA=%%~nxF"
+)
+if "!JAR_AI_MA!"=="" (
+  for %%F in ("%PLUGINS%\mage-player-ai-ma-*.jar") do (
+    if not "%%~nxF"=="mage-player-ai-ma-*.jar" set "JAR_AI_MA=%%~nxF"
+  )
 )
 for %%F in ("%PLUGINS%\mage-player-human-*.jar") do (
   if not "%%~nxF"=="mage-player-human-*.jar" set "JAR_HUMAN=%%~nxF"
@@ -37,7 +43,7 @@ if "!JAR_AI!"=="" (
   pause & exit /b 1
 )
 if "!JAR_AI_MA!"=="" (
-  echo ERRO: nao encontrei mage-player-ai-ma-*.jar em %PLUGINS%
+  echo ERRO: nao encontrei mage-player-ai-mad-*.jar nem mage-player-ai-ma-*.jar em %PLUGINS%
   pause & exit /b 1
 )
 if "!JAR_HUMAN!"=="" (
